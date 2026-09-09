@@ -1,2 +1,40 @@
 # ✨ Starlight
-### A platform-agnostic, API-agnostic graphics API developed to abstract the platform-dependent code and the different graphics APIs into a singular library that can apply the same level of explicitness and simplicity.
+### A cross-platform Hardware Abstraction Layer that unifies Vulkan, DirectX, Metal, and native windowing into a single explicit, low-level API.
+
+**Starlight** bridges the painful gap between graphics API and rendering engine development. It eliminates thousands of lines of fragile platform-dependent window creation and abstracting graphics APIs such as *Vulkan, DirectX,* and *Metal* into one coherent framework without forcing a rendering engine's structure or hiding explicit control.
+
+---
+
+### 🛑 What Starlight Is (And Is Not)
+* **Starlight IS**: A lean **Hardware Abstraction Layer** (HAL) and Graphics API. It manages platform-dependent window creation, event loops, surface initialization, swapchain initialization while unifying the extensive frameworks of Vulkan, DirectX, OpenGL, and Metal into one unified framework.
+* **Starlight IS NOT**: A rendering engine, scene graph, or material framework. It does **not** handle high-level input mapping, audio, physics, or lighting pipelines. It exists purely to give engine developers total control over low-level graphics execution without the cross-platform setup tax.
+
+---
+
+### ⚡ Key Features
+
+* **Vulkan-Inspired Descriptor Design:** Explicit `sType`/`pNext` style configuration structures give developers precise control over backend behavior and forward binary compatibility.
+* **Deferred Asset & Surface Creation:** Descriptors build configuration offline. Native GPU resources (`VkDevice`, `ID3D12Device`, swapchains) are only allocated when bound to an active window surface—preventing validation cascades and race conditions.
+* **Unified Native Event Pump:** Abstracted, thread-safe Win32, Cocoa, and X11/Wayland event loops that require explicit acknowledgment, ensuring clean GPU flushes before native window teardown.
+* **Zero-Overhead Explicit Control:** Automatic defaults and fallbacks can be explicitly configured or toggled off completely for zero-overhead production builds.
+* **C99 Public ABI with C++ Implementation:** Pure C header interface (`extern "C"`) with opaque handles for effortless FFI bindings (Rust, Zig, C#), backed by a modern C++ internal codebase.
+* **Built-In Graphics Debugging Hooks:** Native integration for validation layers, resource leak tracking, and GPU diagnostics across all backends.
+
+---
+
+### 🛠️ Building & Requirements
+Starlight is built using pure C++17 and standard CMake. To compile the code (as the raw binaries are not yet widely available):
+```bash
+# Clone the repository
+git clone https://github.com/twotyped/starlight.git
+cd starlight
+
+# Configure and Build
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build
+```
+
+---
+
+### 📄 License
+Starlight is free, open-source software licensed entirely under the MIT License (read LICENSE).
