@@ -23,11 +23,15 @@
 ---
 
 ### 🛠️ Building & Requirements
-Starlight is built using pure C++17 and standard CMake. To compile the code (as the raw binaries are not yet widely available):
+Starlight is built using pure C++, CMake, and vcpkg. To compile the code (as the raw binaries are not yet widely available):
 ```bash
 # Clone the repository
 git clone https://github.com/twotyped/starlight.git
 cd starlight
+
+# To-do: vcpkg inclusion
+# Download dependencies using vcpkg
+vcpkg install
 
 # Configure and Build
 cmake -B build -DCMAKE_BUILD_TYPE=Release
