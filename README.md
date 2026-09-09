@@ -1,2 +1,2 @@
-# starlight
-A platform-agnostic, API-agnostic graphics API developed to merge the main platforms.
+# ✨ Starlight
+### A platform-agnostic, API-agnostic graphics API developed to abstract the platform-dependent code and the different graphics APIs into a singular library that can apply the same level of explicitness and simplicity.
