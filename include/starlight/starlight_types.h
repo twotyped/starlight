@@ -7,11 +7,15 @@
 #if defined(_WIN32) || defined(_WIN64)
     #ifdef STARLIGHT_BUILD_DLL
         #define SL_API __declspec(dllexport)
-    #else
+    #elif defined(STARLIGHT_USE_DLL)
         #define SL_API __declspec(dllimport)
+    #else
+        #define SL_API
     #endif
-#else
+#elif defined(__GNUG__) || defined(__clang__)
     #define SL_API __attribute__((visibility("default")))
+#else
+    #define SL_API
 #endif
 
 #ifdef __cplusplus
