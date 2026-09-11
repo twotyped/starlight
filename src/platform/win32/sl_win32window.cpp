@@ -67,10 +67,27 @@ bool Win32Window::Initialize(const slWindowInstanceDesc& desc) {
     return true;
 }
 
-void Win32Window::PollEvents() {
+void Win32Window::PollEvents(NativeEventCallback callback) {
     MSG msg = {};
     // Non-blocking message pump
-    while (PeekMessageA(&msg, m_hwnd, 0, 0, PM_REMOVE)) {
+    while (PeekMessageA(&msg, nullptr, 0, 0, PM_REMOVE)) {
+        const bool handled = callback && callback(
+            this,
+            static_cast<uint32_t>(msg.message),
+            static_cast<uintptr_t>(msg.wParam),
+            static_cast<intptr_t>(msg.lParam)
+        );
+
+        if (msg.message == WM_QUIT) {
+            m_shouldClose = true;
+            continue;
+        }
+
+        if (handled) {
+            ApplyHandledMessage(msg.message, msg.wParam, msg.lParam);
+            continue;
+        }
+
         TranslateMessage(&msg);
         DispatchMessageA(&msg);
     }
@@ -97,25 +114,34 @@ LRESULT CALLBACK Win32Window::StaticWndProc(HWND hwnd, UINT msg, WPARAM wParam, 
 }
 
 LRESULT Win32Window::HandleMessage(UINT msg, WPARAM wParam, LPARAM lParam) {
+    ApplyHandledMessage(msg, wParam, lParam);
+
     switch (msg) {
-        case WM_CLOSE:
-            m_shouldClose = true;
-            return 0;
-
-        case WM_SIZE:
-            m_width = LOWORD(lParam);
-            m_height = HIWORD(lParam);
-            return 0;
-
-        case WM_DESTROY:
-            PostQuitMessage(0);
-            return 0;
-
         default:
             break;
     }
 
     return DefWindowProcA(m_hwnd, msg, wParam, lParam);
+}
+
+void Win32Window::ApplyHandledMessage(UINT msg, WPARAM wParam, LPARAM lParam) {
+    switch (msg) {
+        case WM_CLOSE:
+            m_shouldClose = true;
+            break;
+
+        case WM_SIZE:
+            m_width = LOWORD(lParam);
+            m_height = HIWORD(lParam);
+            break;
+
+        case WM_DESTROY:
+            PostQuitMessage(0);
+            break;
+
+        default:
+            break;
+    }
 }
 
 } // namespace starlight

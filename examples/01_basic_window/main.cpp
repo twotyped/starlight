@@ -1,11 +1,21 @@
 #include <starlight/starlight.h>
 #include <iostream>
 
+bool HandleEvent(const slEvent* event, void*) {
+    if (event && event->Type == SL_EVENT_CLOSE) {
+        std::cout << "Closing window..." << std::endl;
+    }
+
+    return false;
+}
+
 int main() {
     std::cout << "Hello, Starlight!" << std::endl;
 
     slInitializationDesc initDesc{SL_STRUCT_TYPE_INIT_DESC};
     initDesc.GraphicsApi = SL_GRAPHICS_API_ALL;
+    initDesc.DefinedFields = SL_INIT_DESC_GRAPHICS_API_BIT | SL_INIT_DESC_EVENT_CALLBACK_BIT;
+    initDesc.EventCallback = HandleEvent;
 
     if (slInit(&initDesc) != SL_SUCCESS) {
         std::cerr << "Failed to initialize Starlight!\n";
@@ -13,7 +23,7 @@ int main() {
     }
 
     slWindowInstanceDesc instanceDesc{SL_STRUCT_TYPE_WINDOW_INSTANCE_DESC};
-    instanceDesc.ApplicationName = "01: Clear Window";
+    instanceDesc.ApplicationName = "01: Basic Window";
     instanceDesc.ApplicationVersion = SL_MAKE_VERSION(1,0,0);
     instanceDesc.Height = 1280;
     instanceDesc.Width = 720;

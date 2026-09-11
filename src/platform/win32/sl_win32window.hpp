@@ -17,7 +17,7 @@ public:
 
     // starlight::Window Interface
     bool Initialize(const slWindowInstanceDesc& desc) override;
-    void PollEvents() override;
+    void PollEvents(NativeEventCallback callback) override;
     bool ShouldClose() const override { return m_shouldClose; }
     void RequestClose() override { m_shouldClose = true; }
 
@@ -31,6 +31,7 @@ private:
     // Static Win32 message procedure router
     static LRESULT CALLBACK StaticWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
     LRESULT HandleMessage(UINT msg, WPARAM wParam, LPARAM lParam);
+    void ApplyHandledMessage(UINT msg, WPARAM wParam, LPARAM lParam);
 
     HWND m_hwnd{NULL};
     HINSTANCE m_hinstance{NULL};

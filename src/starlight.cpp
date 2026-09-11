@@ -8,6 +8,59 @@
 // Global Starlight internal state
 static slInstance_t g_starlightInstance{};
 
+static bool DispatchNativeEvent(
+    starlight::Window* window,
+    uint32_t message,
+    uintptr_t wParam,
+    intptr_t lParam
+) {
+    slEvent event{};
+    event.Window = window->GetPublicHandle();
+
+    switch (message) {
+        case WM_QUIT:
+        case WM_CLOSE:
+            event.Type = SL_EVENT_CLOSE;
+            break;
+
+        case WM_SIZE:
+            event.Type = SL_EVENT_RESIZE;
+            event.resize.Width = LOWORD(lParam);
+            event.resize.Height = HIWORD(lParam);
+            break;
+
+        case WM_KEYDOWN:
+        case WM_SYSKEYDOWN:
+            event.Type = SL_EVENT_KEY;
+            event.key.Key = static_cast<uint32_t>(wParam);
+            event.key.Pressed = true;
+            break;
+
+        case WM_KEYUP:
+        case WM_SYSKEYUP:
+            event.Type = SL_EVENT_KEY;
+            event.key.Key = static_cast<uint32_t>(wParam);
+            event.key.Pressed = false;
+            break;
+
+        default:
+            return false;
+    }
+
+    if (g_starlightInstance.handleEvents) {
+        return true;
+    }
+
+    if (!g_starlightInstance.eventCallback) {
+        return false;
+    }
+
+    return g_starlightInstance.eventCallback(
+        &event,
+        g_starlightInstance.eventUserData
+    );
+}
+
 extern "C" {
 
 SL_API slResult slInit(const slInitializationDesc* pDesc) {
@@ -15,13 +68,46 @@ SL_API slResult slInit(const slInitializationDesc* pDesc) {
         return SL_SUCCESS; // Already initialized
     }
 
-    if (pDesc) {
+    if (!pDesc) {
+        g_starlightInstance.enabledApis = SL_GRAPHICS_API_ALL;
+        g_starlightInstance.resizableWindow = true;
+        g_starlightInstance.handleEvents = false;
+        g_starlightInstance.eventCallback = nullptr;
+        g_starlightInstance.eventUserData = nullptr;
+    } else if (pDesc->sType == SL_STRUCT_TYPE_NONE) {
+        g_starlightInstance.enabledApis = pDesc->GraphicsApi;
+        g_starlightInstance.resizableWindow = pDesc->ResizableWindow;
+        g_starlightInstance.handleEvents = pDesc->HandleEvents;
+        g_starlightInstance.eventCallback = pDesc->EventCallback;
+        g_starlightInstance.eventUserData = pDesc->EventUserData;
+    } else {
         if (pDesc->sType != SL_STRUCT_TYPE_INIT_DESC) {
             return SL_ERROR_INVALID_PARAMETER;
         }
-        g_starlightInstance.enabledApis = pDesc->GraphicsApi;
-    } else {
+
         g_starlightInstance.enabledApis = SL_GRAPHICS_API_ALL;
+        g_starlightInstance.resizableWindow = true;
+        g_starlightInstance.handleEvents = false;
+        g_starlightInstance.eventCallback = nullptr;
+        g_starlightInstance.eventUserData = nullptr;
+
+#if defined(_WIN32) || defined(_WIN64)
+        g_starlightInstance.enabledApis = SL_GRAPHICS_API_WINDOWS;
+#endif
+
+        if (pDesc->DefinedFields & SL_INIT_DESC_GRAPHICS_API_BIT) {
+            g_starlightInstance.enabledApis = pDesc->GraphicsApi;
+        }
+        if (pDesc->DefinedFields & SL_INIT_DESC_RESIZABLE_WINDOW_BIT) {
+            g_starlightInstance.resizableWindow = pDesc->ResizableWindow;
+        }
+        if (pDesc->DefinedFields & SL_INIT_DESC_HANDLE_EVENTS_BIT) {
+            g_starlightInstance.handleEvents = pDesc->HandleEvents;
+        }
+        if (pDesc->DefinedFields & SL_INIT_DESC_EVENT_CALLBACK_BIT) {
+            g_starlightInstance.eventCallback = pDesc->EventCallback;
+            g_starlightInstance.eventUserData = pDesc->EventUserData;
+        }
     }
 
     g_starlightInstance.initialized = true;
@@ -83,6 +169,7 @@ SL_API slResult slCreateWindow(slWindowInstance instance, slLogicalDevice device
     auto windowHandle = new slWindow_t();
     windowHandle->internalWindow = nativeWindow.get();
     windowHandle->parentInstance = instance;
+    nativeWindow->SetPublicHandle(windowHandle);
 
     // 3. Store ownership in WindowInstance
     instance->windows.push_back(std::move(nativeWindow));
@@ -111,7 +198,7 @@ SL_API void slPollEvents(void) {
 
     for (const auto& instance : g_starlightInstance.instances) {
         for (const auto& window : instance->windows) {
-            window->PollEvents();
+            window->PollEvents(DispatchNativeEvent);
         }
     }
 }

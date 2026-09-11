@@ -10,6 +10,12 @@
 struct slInstance_t {
     bool initialized{false};
     slGraphicsApiFlags enabledApis = SL_GRAPHICS_API_ALL;
+    bool resizableWindow{true};
+
+    bool handleEvents{false};
+    slEventCallback eventCallback{nullptr};
+    void* eventUserData{nullptr};
+
     std::vector<slWindowInstance> instances;
 };
 

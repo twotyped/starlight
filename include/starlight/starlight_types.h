@@ -28,6 +28,7 @@ extern "C" {
 
 
 // OPAQUE HANDLES
+
 typedef struct slInstance_t*            slInstance;         // An internal instance. This is not created publicly.
 typedef struct slWindowInstance_t*      slWindowInstance;   // An instance for the window. This *is* created publicly and is effectively the public equivalent of the Starlight instance.
 typedef struct slPhysicalDevice_t*      slPhysicalDevice;   // Acts as an abstracted gateway to the physical device (the GPU).
@@ -36,6 +37,7 @@ typedef struct slSwapchain_t*           slSwapchain;        // Swap chain.
 typedef struct slWindow_t*              slWindow;           // The actual abstracted window class, managed by the window instance.
 
 // CORE ENUMS
+
 typedef enum slResult {
     SL_SUCCESS = 0,
     SL_ERROR_INITIALIZATION_FAILED = -1,
@@ -79,6 +81,7 @@ typedef enum slPresentMode {
 } slPresentMode;
 
 // EXTENSION SUB-STRUCTS
+
 typedef struct slVulkanWindowInfo {
     const char* EngineName;
     uint32_t EngineVersion;
@@ -89,13 +92,55 @@ typedef struct slSwapchainExtensions {
     bool HdrEnabled;
 } slSwapchainExtensions;
 
+typedef enum slEventType {
+    SL_EVENT_NONE = 0,
+    SL_EVENT_CLOSE,
+    SL_EVENT_RESIZE,
+    SL_EVENT_KEY,
+    SL_EVENT_MOUSE
+} slEventType;
+
+typedef struct slEvent {
+    slEventType Type;
+    slWindow Window;
+
+    union {
+        struct {
+            uint32_t Width;
+            uint32_t Height;
+        } resize;
+
+        struct {
+            uint32_t Key;
+            bool Pressed;
+        } key;
+    };
+} slEvent;
+
+typedef bool (*slEventCallback)(
+    const slEvent* event,
+    void* userData
+);
+
+typedef enum slInitializationDescFieldBits {
+    SL_INIT_DESC_GRAPHICS_API_BIT    = (1 << 0),
+    SL_INIT_DESC_RESIZABLE_WINDOW_BIT = (1 << 1),
+    SL_INIT_DESC_HANDLE_EVENTS_BIT    = (1 << 2),
+    SL_INIT_DESC_EVENT_CALLBACK_BIT   = (1 << 3)
+} slInitializationDescFieldBits;
+
 // DESCRIPTOR STRUCTS
+
 typedef struct slInitializationDesc {
     slStructureType sType;      // Should be set to SL_STRUCT_TYPE_INIT_DESC
     const void* pNext;          // Pointer to extension-specific structures, or NULL
+    uint32_t DefinedFields;     // Bitmask of fields explicitly supplied by the application.
     slGraphicsApiFlags GraphicsApi; // Defaults depending on platform—refer to slGraphicsApi.
     bool ResizableWindow;       // Defaults to true
     bool HandleEvents;          // Defaults to false (manual mode, you must handle events manually)
+
+    slEventCallback EventCallback;
+    void* EventUserData;
 } slInitializationDesc;
 
 typedef struct slWindowInstanceDesc {
