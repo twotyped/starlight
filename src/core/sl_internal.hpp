@@ -23,6 +23,8 @@ struct slInstance_t {
 struct slWindowInstance_t {
     std::string appName;
     uint32_t appVersion{0};
+    uint32_t width{800};
+    uint32_t height{600};
     
     slLogicalDevice activeLogicalDevice{nullptr};
     std::vector<slPhysicalDevice> physicalDevices;

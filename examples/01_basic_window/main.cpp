@@ -25,8 +25,8 @@ int main() {
     slWindowInstanceDesc instanceDesc{SL_STRUCT_TYPE_WINDOW_INSTANCE_DESC};
     instanceDesc.ApplicationName = "01: Basic Window";
     instanceDesc.ApplicationVersion = SL_MAKE_VERSION(1,0,0);
-    instanceDesc.Height = 1280;
-    instanceDesc.Width = 720;
+    instanceDesc.Width = 800;
+    instanceDesc.Height = 600;
 
     slWindowInstance instance;
     slCreateWindowInstance(&instanceDesc, &instance);

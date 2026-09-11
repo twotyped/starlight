@@ -130,6 +130,8 @@ SL_API slResult slCreateWindowInstance(const slWindowInstanceDesc* pDesc, slWind
     auto instance = new slWindowInstance_t();
     instance->appName = pDesc->ApplicationName ? pDesc->ApplicationName : "Starlight Application";
     instance->appVersion = pDesc->ApplicationVersion;
+    instance->width = pDesc->Width;
+    instance->height = pDesc->Height;
 
     g_starlightInstance.instances.push_back(instance);
     *pOutInstance = instance;
@@ -158,8 +160,8 @@ SL_API slResult slCreateWindow(slWindowInstance instance, slLogicalDevice device
     slWindowInstanceDesc desc{};
     desc.sType = SL_STRUCT_TYPE_WINDOW_INSTANCE_DESC;
     desc.ApplicationName = instance->appName.c_str();
-    desc.Width = 800;  // Default fallback if not defined in device/instance
-    desc.Height = 600;
+    desc.Width = instance->width;
+    desc.Height = instance->height;
 
     if (!nativeWindow->Initialize(desc)) {
         return SL_ERROR_INITIALIZATION_FAILED;
