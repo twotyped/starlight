@@ -30,7 +30,6 @@ int main() {
 
     while (!slWindowShouldClose(window)) {
         slPollEvents();
-        // Clear screen / Rendering logic goes here
     }
 
     slDestroyWindow(window);

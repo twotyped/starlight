@@ -10,6 +10,7 @@
 struct slInstance_t {
     bool initialized{false};
     slGraphicsApiFlags enabledApis = SL_GRAPHICS_API_ALL;
+    std::vector<slWindowInstance> instances;
 };
 
 // Internal C++ definition backing public slWindowInstance handle

@@ -1,5 +1,7 @@
 #include <starlight/starlight.h>
 
+#include <algorithm>
+
 #include "core/sl_internal.hpp"
 #include "platform/win32/sl_win32window.hpp"
 
@@ -43,12 +45,17 @@ SL_API slResult slCreateWindowInstance(const slWindowInstanceDesc* pDesc, slWind
     instance->appName = pDesc->ApplicationName ? pDesc->ApplicationName : "Starlight Application";
     instance->appVersion = pDesc->ApplicationVersion;
 
+    g_starlightInstance.instances.push_back(instance);
     *pOutInstance = instance;
     return SL_SUCCESS;
 }
 
 SL_API void slDestroyWindowInstance(slWindowInstance instance) {
     if (instance) {
+        auto it = std::find(g_starlightInstance.instances.begin(), g_starlightInstance.instances.end(), instance);
+        if (it != g_starlightInstance.instances.end()) {
+            g_starlightInstance.instances.erase(it);
+        }
         delete instance;
     }
 }
@@ -98,8 +105,15 @@ SL_API bool slWindowShouldClose(slWindow window) {
 }
 
 SL_API void slPollEvents(void) {
-    // For now, poll directly across active instances/windows
-    // In full implementation, iterates through active g_starlightInstance windows
+    if (!g_starlightInstance.initialized) {
+        return;
+    }
+
+    for (const auto& instance : g_starlightInstance.instances) {
+        for (const auto& window : instance->windows) {
+            window->PollEvents();
+        }
+    }
 }
 
 } // extern "C"
