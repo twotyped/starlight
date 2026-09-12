@@ -29,14 +29,36 @@ Starlight is built using pure C++, CMake, and vcpkg. To compile the code (as the
 git clone https://github.com/twotyped/starlight.git
 cd starlight
 
-# To-do: vcpkg inclusion
-# Download dependencies using vcpkg
-vcpkg install
+# Install vcpkg, then set VCPKG_ROOT to its directory. For example, in
+# PowerShell, if vcpkg is at C:\src\vcpkg:
+$env:VCPKG_ROOT = 'C:\src\vcpkg'
 
-# Configure and Build
-cmake -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build
+# CMake will now load vcpkg.json through the vcpkg toolchain and install its
+# declared dependencies automatically.
+cmake --preset vcpkg
+
+# Build the Debug configuration
+cmake --build --preset vcpkg
 ```
+
+For a Release build, select the configuration supported by your generator:
+
+```powershell
+$env:VCPKG_ROOT = 'C:\src\vcpkg'
+cmake --preset vcpkg
+cmake --build build-vcpkg --config Release
+```
+
+On POSIX shells, set the equivalent variable before configuring:
+
+```sh
+export VCPKG_ROOT=/path/to/vcpkg
+cmake --preset vcpkg
+```
+
+The `CMakePresets.json` file contains the default configuration used by the
+commands above. Dependencies should be added to `vcpkg.json`; do not run
+`vcpkg install` separately for this project.
 
 ---
 

@@ -4,9 +4,10 @@
 bool HandleEvent(const slEvent* event, void*) {
     if (event && event->Type == SL_EVENT_CLOSE) {
         std::cout << "Closing window..." << std::endl;
+        return false; // Here we must (or technically should) set this to false to allow Starlight to handle the window closing.
     }
 
-    return false;
+    return true;
 }
 
 int main() {
@@ -15,6 +16,7 @@ int main() {
     slInitializationDesc initDesc{SL_STRUCT_TYPE_INIT_DESC};
     initDesc.GraphicsApi = SL_GRAPHICS_API_ALL;
     initDesc.DefinedFields = SL_INIT_DESC_GRAPHICS_API_BIT | SL_INIT_DESC_EVENT_CALLBACK_BIT;
+    initDesc.HandleEvents = false; // Setting this to false allows us to handle events through an event callback.
     initDesc.EventCallback = HandleEvent;
 
     if (slInit(&initDesc) != SL_SUCCESS) {
