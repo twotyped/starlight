@@ -29,6 +29,7 @@ int main() {
     instanceDesc.ApplicationVersion = SL_MAKE_VERSION(1,0,0);
     instanceDesc.Width = 800;
     instanceDesc.Height = 600;
+    instanceDesc.ResizableWindow = false;
 
     slWindowInstance instance;
     slCreateWindowInstance(&instanceDesc, &instance);

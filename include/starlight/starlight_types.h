@@ -136,10 +136,9 @@ typedef struct slInitializationDesc {
     const void* pNext;          // Pointer to extension-specific structures, or NULL
     uint32_t DefinedFields;     // Bitmask of fields explicitly supplied by the application.
     slGraphicsApiFlags GraphicsApi; // Defaults depending on platform—refer to slGraphicsApi.
-    bool ResizableWindow;       // Defaults to true
-    bool HandleEvents;          // Defaults to false (manual mode, you must handle events manually)
 
-    slEventCallback EventCallback;
+    bool HandleEvents;          // Defaults to false (manual mode, you must handle events manually)
+    slEventCallback EventCallback; // The function which handles the events.
     void* EventUserData;
 } slInitializationDesc;
 
@@ -150,6 +149,8 @@ typedef struct slWindowInstanceDesc {
     uint32_t ApplicationVersion;    // The version of the application. Currently useless. Should use SL_MAKE_VERSION(major, minor, patch).
     uint32_t Width;                 // The window's width (note that this is explicitly for the WINDOW surface, not the swapchain—allowing you to stretch, or upscale/downscale).
     uint32_t Height;                // The window's height (note that this is explicitly for the WINDOW surface, not the swapchain—allowing you to stretch, or upscale/downscale).
+    bool ResizableWindow;           // Defaults to true
+
     slVulkanWindowInfo vk;          // Vulkan-specific sub-struct
 } slWindowInstanceDesc;
 

@@ -70,13 +70,11 @@ SL_API slResult slInit(const slInitializationDesc* pDesc) {
 
     if (!pDesc) {
         g_starlightInstance.enabledApis = SL_GRAPHICS_API_ALL;
-        g_starlightInstance.resizableWindow = true;
         g_starlightInstance.handleEvents = false;
         g_starlightInstance.eventCallback = nullptr;
         g_starlightInstance.eventUserData = nullptr;
     } else if (pDesc->sType == SL_STRUCT_TYPE_NONE) {
         g_starlightInstance.enabledApis = pDesc->GraphicsApi;
-        g_starlightInstance.resizableWindow = pDesc->ResizableWindow;
         g_starlightInstance.handleEvents = pDesc->HandleEvents;
         g_starlightInstance.eventCallback = pDesc->EventCallback;
         g_starlightInstance.eventUserData = pDesc->EventUserData;
@@ -86,7 +84,6 @@ SL_API slResult slInit(const slInitializationDesc* pDesc) {
         }
 
         g_starlightInstance.enabledApis = SL_GRAPHICS_API_ALL;
-        g_starlightInstance.resizableWindow = true;
         g_starlightInstance.handleEvents = false;
         g_starlightInstance.eventCallback = nullptr;
         g_starlightInstance.eventUserData = nullptr;
@@ -97,9 +94,6 @@ SL_API slResult slInit(const slInitializationDesc* pDesc) {
 
         if (pDesc->DefinedFields & SL_INIT_DESC_GRAPHICS_API_BIT) {
             g_starlightInstance.enabledApis = pDesc->GraphicsApi;
-        }
-        if (pDesc->DefinedFields & SL_INIT_DESC_RESIZABLE_WINDOW_BIT) {
-            g_starlightInstance.resizableWindow = pDesc->ResizableWindow;
         }
         if (pDesc->DefinedFields & SL_INIT_DESC_HANDLE_EVENTS_BIT) {
             g_starlightInstance.handleEvents = pDesc->HandleEvents;
@@ -132,6 +126,7 @@ SL_API slResult slCreateWindowInstance(const slWindowInstanceDesc* pDesc, slWind
     instance->appVersion = pDesc->ApplicationVersion;
     instance->width = pDesc->Width;
     instance->height = pDesc->Height;
+    instance->resizableWindow = pDesc->ResizableWindow;
 
     g_starlightInstance.instances.push_back(instance);
     *pOutInstance = instance;
@@ -162,6 +157,7 @@ SL_API slResult slCreateWindow(slWindowInstance instance, slLogicalDevice device
     desc.ApplicationName = instance->appName.c_str();
     desc.Width = instance->width;
     desc.Height = instance->height;
+    desc.ResizableWindow = instance->resizableWindow;
 
     if (!nativeWindow->Initialize(desc)) {
         return SL_ERROR_INITIALIZATION_FAILED;

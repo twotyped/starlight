@@ -41,6 +41,9 @@ bool Win32Window::Initialize(const slWindowInstanceDesc& desc) {
 
     RECT windowRect = { 0, 0, static_cast<LONG>(m_width), static_cast<LONG>(m_height) };
     DWORD dwStyle = WS_OVERLAPPEDWINDOW;
+    if (!desc.ResizableWindow) {
+        dwStyle &= ~(WS_THICKFRAME | WS_MAXIMIZEBOX);
+    }
     AdjustWindowRect(&windowRect, dwStyle, FALSE);
 
     m_hwnd = CreateWindowExA(
