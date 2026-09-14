@@ -35,6 +35,7 @@ typedef struct slPhysicalDevice_t*      slPhysicalDevice;   // Acts as an abstra
 typedef struct slLogicalDevice_t*       slLogicalDevice;    // Handles physical devices, swapchains, and more.
 typedef struct slSwapchain_t*           slSwapchain;        // Swap chain.
 typedef struct slWindow_t*              slWindow;           // The actual abstracted window class, managed by the window instance.
+typedef struct slWindowSurfaceBuffer_t* slWindowSurfaceBuffer;
 
 // CORE ENUMS
 
@@ -92,6 +93,8 @@ typedef struct slSwapchainExtensions {
     bool HdrEnabled;
 } slSwapchainExtensions;
 
+// STUFF I GUESS
+
 typedef enum slEventType {
     SL_EVENT_NONE = 0,
     SL_EVENT_CLOSE,
@@ -129,6 +132,12 @@ typedef enum slInitializationDescFieldBits {
     SL_INIT_DESC_EVENT_CALLBACK_BIT   = (1 << 3)
 } slInitializationDescFieldBits;
 
+
+typedef enum slSurfaceFormat {
+    SL_SURFACE_FORMAT_BGRA8_UNORM,
+    SL_SURFACE_FORMAT_RGBA8_UNORM
+} slSurfaceFormat;
+
 // DESCRIPTOR STRUCTS
 
 typedef struct slInitializationDesc {
@@ -150,6 +159,7 @@ typedef struct slWindowInstanceDesc {
     uint32_t Width;                 // The window's width (note that this is explicitly for the WINDOW surface, not the swapchain—allowing you to stretch, or upscale/downscale).
     uint32_t Height;                // The window's height (note that this is explicitly for the WINDOW surface, not the swapchain—allowing you to stretch, or upscale/downscale).
     bool ResizableWindow;           // Defaults to true
+    slWindowSurfaceBuffer* WindowSurfaceBuffer; // Pointer to the created window surface buffer. If not set, it'll resort to creating an internal surface buffer.
 
     slVulkanWindowInfo vk;          // Vulkan-specific sub-struct
 } slWindowInstanceDesc;
@@ -170,6 +180,14 @@ typedef struct slSwapchainDesc {
     bool Clipped;                       // Whether the swapchain can discard rendering operations for pixels that are obscured or completely hidden from view.
     slSwapchainExtensions ext;          // Swapchain extension sub-struct.
 } slSwapchainDesc;
+
+typedef struct slWindowSurfaceBufferDesc {
+    slStructureType sType;
+    uint32_t Width;
+    uint32_t Height;
+    slSurfaceFormat Format;
+    uint32_t BufferCount; // 1, 2, or 3
+} slWindowSurfaceBufferDesc;
 
 #ifdef __cplusplus
 }

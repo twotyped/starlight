@@ -30,12 +30,15 @@ public:
     virtual uint32_t GetWidth() const = 0;
     virtual uint32_t GetHeight() const = 0;
 
+    virtual slWindowSurfaceBuffer* GetSurfaceBuffer() { return m_surfaceBuffer; }
+
 protected:
     std::string m_title;
     uint32_t m_width{0};
     uint32_t m_height{0};
     bool m_shouldClose{false};
     slWindow m_publicHandle{nullptr};
+    slWindowSurfaceBuffer* m_surfaceBuffer{nullptr};
 };
 
 } // namespace starlight

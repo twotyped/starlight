@@ -22,6 +22,7 @@ bool Win32Window::Initialize(const slWindowInstanceDesc& desc) {
     m_width = desc.Width;
     m_height = desc.Height;
     m_title = desc.ApplicationName ? desc.ApplicationName : "Starlight Window";
+    m_surfaceBuffer = desc.WindowSurfaceBuffer;
 
     WNDCLASSEXA wc = {};
     wc.cbSize = sizeof(WNDCLASSEXA);

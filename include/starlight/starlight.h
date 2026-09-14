@@ -85,6 +85,37 @@ SL_API bool slWindowShouldClose(slWindow window);
  */
 SL_API void slPollEvents(void);
 
+/**
+ * @brief Creates a CPU-backed surface buffer associated with a window.
+ * @param window The window that owns and presents the surface buffer.
+ * @param pDesc Configuration descriptor for the surface buffer.
+ * @param pOutBuffer Pointer to receive the allocated surface buffer handle.
+ * @return SL_SUCCESS on success, or an slResult error code.
+ */
+SL_API slResult slCreateWindowSurfaceBuffer(slWindow window, const slWindowSurfaceBufferDesc* pDesc, slWindowSurfaceBuffer* pOutBuffer);
+
+/**
+ * @brief Maps a surface buffer for CPU access.
+ * @param buffer The surface buffer to map.
+ * @param pPixels Pointer to receive the writable pixel data address.
+ * @param pRowPitch Pointer to receive the number of bytes between adjacent rows.
+ * @return SL_SUCCESS on success, or an slResult error code.
+ */
+SL_API slResult slMapWindowSurfaceBuffer(slWindowSurfaceBuffer buffer, void** pPixels, uint32_t* pRowPitch);
+
+/**
+ * @brief Presents the current contents of a surface buffer to its window.
+ * @param buffer The surface buffer to present.
+ * @return SL_SUCCESS on success, or an slResult error code.
+ */
+SL_API slResult slPresentWindowSurfaceBuffer(slWindowSurfaceBuffer buffer);
+
+/**
+ * @brief Destroys a surface buffer and releases its associated storage.
+ * @param buffer The surface buffer handle to destroy.
+ */
+SL_API void slDestroyWindowSurfaceBuffer(slWindowSurfaceBuffer buffer);
+
 #ifdef __cplusplus
 }
 #endif

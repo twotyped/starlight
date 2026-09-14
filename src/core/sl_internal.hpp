@@ -43,3 +43,15 @@ struct slWindow_t {
     starlight::Window* internalWindow{nullptr};
     slWindowInstance parentInstance{nullptr};
 };
+
+// Internal C++ definition backing public slWindowSurfaceBuffer handle
+struct slWindowSurfaceBuffer_t {
+    slWindow parentWindow{nullptr};
+
+    uint32_t width{0};
+    uint32_t height{0};
+    uint32_t rowPitch{0};
+    slSurfaceFormat format{SL_SURFACE_FORMAT_BGRA8_UNORM};
+
+    std::vector<std::byte> pixels;
+};
