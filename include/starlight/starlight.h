@@ -64,7 +64,7 @@ SL_API void slDestroyLogicalDevice(slLogicalDevice device);
  * @param pOutWindow Pointer to receive the fully instantiated slWindow handle.
  * @return SL_SUCCESS on success, or slResult error code.
  */
-SL_API slResult slCreateWindow(slWindowInstance instance, slLogicalDevice device, slWindow* pOutWindow);
+SL_API slResult slCreateWindow(slWindowInstance instance, slLogicalDevice device, slWindow* pOutWindow, const slWindowSurfaceDesc* pSurfaceDesc);
 
 /**
  * @brief Destroys an active native window, swapchain, and surface handles.

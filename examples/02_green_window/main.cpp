@@ -28,9 +28,6 @@ int main() {
     instanceDesc.ApplicationName = "02: Green Window";
     instanceDesc.ApplicationVersion = SL_MAKE_VERSION(1,0,0);
 
-    slWindowSurfaceBuffer surface;
-    instanceDesc.WindowSurfaceBuffer = &surface;
-
     instanceDesc.Width = 800;
     instanceDesc.Height = 600;
     instanceDesc.ResizableWindow = false;
@@ -38,8 +35,12 @@ int main() {
     slWindowInstance instance;
     slCreateWindowInstance(&instanceDesc, &instance);
 
-    slWindow window = nullptr;
-    if (slCreateWindow(instance, nullptr, &window) != SL_SUCCESS) {
+    slWindowSurfaceDesc surfaceDesc{SL_STRUCT_TYPE_WINDOW_SURFACE_DESC};
+    surfaceDesc.RequestedColorSpace = SL_COLOR_SPACE_SRGB_LINEAR;
+    surfaceDesc.RequestedFormat = SL_SURFACE_FORMAT_BGRA8_UNORM;
+
+    slWindow window{nullptr};
+    if (slCreateWindow(instance, nullptr, &window, &surfaceDesc) != SL_SUCCESS) {
         std::cerr << "Failed to create window!\n";
         slShutdown();
         return -1;

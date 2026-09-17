@@ -6,6 +6,9 @@ namespace starlight
 Win32Window::Win32Window() = default;
 
 Win32Window::~Win32Window() {
+    delete m_surface;
+    m_surface = nullptr;
+
     if (m_hwnd) {
         DestroyWindow(m_hwnd);
         m_hwnd = nullptr;
@@ -17,12 +20,12 @@ Win32Window::~Win32Window() {
     }
 }
 
-bool Win32Window::Initialize(const slWindowInstanceDesc& desc) {
+bool Win32Window::Initialize(const slWindowInstanceDesc& desc, slWindowSurface surface) {
     m_hinstance = GetModuleHandle(NULL);
     m_width = desc.Width;
     m_height = desc.Height;
     m_title = desc.ApplicationName ? desc.ApplicationName : "Starlight Window";
-    m_surfaceBuffer = desc.WindowSurfaceBuffer;
+    m_surface = surface;
 
     WNDCLASSEXA wc = {};
     wc.cbSize = sizeof(WNDCLASSEXA);

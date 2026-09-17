@@ -128,6 +128,35 @@ SL_API slResult slCreateWindowInstance(const slWindowInstanceDesc* pDesc, slWind
     instance->height = pDesc->Height;
     instance->resizableWindow = pDesc->ResizableWindow;
 
+    if (g_starlightInstance.enabledApis & SL_GRAPHICS_API_VULKAN_BIT) { // Vulkan enabled, initialize it.
+        instance->pVk = new vkWindowInstanceState();
+
+        VkApplicationInfo appInfo{VK_STRUCTURE_TYPE_APPLICATION_INFO};
+        appInfo.pApplicationName = instance->appName.c_str();
+        appInfo.applicationVersion = instance->appVersion; // same versioning structure
+        appInfo.pEngineName = pDesc->vk.EngineName ? pDesc->vk.EngineName : "No Engine";
+        appInfo.engineVersion = pDesc->vk.EngineVersion ? pDesc->vk.EngineVersion : VK_MAKE_VERSION(0, 0, 0);
+        appInfo.apiVersion = pDesc->vk.ApiVersion ? pDesc->vk.ApiVersion : VK_API_VERSION_1_3;
+
+        VkInstanceCreateInfo createInfo{VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
+        createInfo.pApplicationInfo = &appInfo;
+        
+        if (pDesc->vk.IncludeStarlightWindowExtensions) {
+            // Do starlight default extensions here.
+        }
+
+        createInfo.enabledExtensionCount = pDesc->vk.EnabledExtensionCount;
+        createInfo.enabledLayerCount = pDesc->vk.EnabledLayerCount;
+        createInfo.ppEnabledExtensionNames = pDesc->vk.ppEnabledExtensionNames;
+        createInfo.ppEnabledLayerNames = pDesc->vk.ppEnabledLayerNames;
+
+        if (vkCreateInstance(&createInfo, nullptr, &instance->pVk->context.instance) != VK_SUCCESS) {
+            delete instance->pVk;
+            delete instance;
+            return SL_ERROR_VULKAN_INITIALIZATION_FAILED;
+        }
+    }
+
     g_starlightInstance.instances.push_back(instance);
     *pOutInstance = instance;
     return SL_SUCCESS;
@@ -143,15 +172,17 @@ SL_API void slDestroyWindowInstance(slWindowInstance instance) {
     }
 }
 
-SL_API slResult slCreateWindow(slWindowInstance instance, slLogicalDevice device, slWindow* pOutWindow) {
+SL_API slResult slCreateWindow(slWindowInstance instance, slLogicalDevice device, slWindow* pOutWindow, const slWindowSurfaceDesc* pSurfaceDesc) {
     if (!instance || !pOutWindow) {
         return SL_ERROR_INVALID_PARAMETER;
     }
 
-    // 1. Instantiate concrete platform window (Win32 for now)
+    if (pSurfaceDesc && pSurfaceDesc->sType != SL_STRUCT_TYPE_WINDOW_SURFACE_DESC) {
+        return SL_ERROR_INVALID_PARAMETER;
+    }
+
     auto nativeWindow = std::make_unique<starlight::Win32Window>();
 
-    // Build temporary desc for window creation from stored instance specs
     slWindowInstanceDesc desc{};
     desc.sType = SL_STRUCT_TYPE_WINDOW_INSTANCE_DESC;
     desc.ApplicationName = instance->appName.c_str();
@@ -159,17 +190,25 @@ SL_API slResult slCreateWindow(slWindowInstance instance, slLogicalDevice device
     desc.Height = instance->height;
     desc.ResizableWindow = instance->resizableWindow;
 
-    if (!nativeWindow->Initialize(desc)) {
+    slWindowSurface surface = nullptr;
+    if (pSurfaceDesc) {
+        surface = new slWindowSurface_t();
+        surface->sType = pSurfaceDesc->sType;
+        surface->pNext = pSurfaceDesc->pNext;
+        surface->format = pSurfaceDesc->RequestedFormat;
+        surface->colorSpace = pSurfaceDesc->RequestedColorSpace;
+    }
+
+    if (!nativeWindow->Initialize(desc, surface)) {
+        delete surface;
         return SL_ERROR_INITIALIZATION_FAILED;
     }
 
-    // 2. Allocate public slWindow handle
     auto windowHandle = new slWindow_t();
     windowHandle->internalWindow = nativeWindow.get();
     windowHandle->parentInstance = instance;
     nativeWindow->SetPublicHandle(windowHandle);
 
-    // 3. Store ownership in WindowInstance
     instance->windows.push_back(std::move(nativeWindow));
 
     *pOutWindow = windowHandle;

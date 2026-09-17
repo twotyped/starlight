@@ -4,7 +4,10 @@ add_library(starlight STATIC
     core/sl_internal.hpp
     platform/win32/sl_win32window.hpp
     platform/win32/sl_win32window.cpp
+    core/api/vulkan/vk_internal.hpp
 )
+
+find_package(VulkanHeaders CONFIG REQUIRED)
 
 target_include_directories(starlight
     PUBLIC
@@ -15,6 +18,8 @@ target_include_directories(starlight
 )
 
 target_compile_features(starlight PUBLIC cxx_std_20)
+
+target_link_libraries(starlight PRIVATE Vulkan::Headers)
 
 if(WIN32)
     target_link_libraries(starlight PRIVATE user32 gdi32)

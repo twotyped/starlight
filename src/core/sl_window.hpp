@@ -18,7 +18,7 @@ class Window {
 public:
     virtual ~Window() = default;
 
-    virtual bool Initialize(const slWindowInstanceDesc& desc) = 0;
+    virtual bool Initialize(const slWindowInstanceDesc& pDesc, slWindowSurface surface) = 0;
     virtual void PollEvents(NativeEventCallback callback) = 0;
     virtual bool ShouldClose() const = 0;
     virtual void RequestClose() = 0;
@@ -30,7 +30,7 @@ public:
     virtual uint32_t GetWidth() const = 0;
     virtual uint32_t GetHeight() const = 0;
 
-    virtual slWindowSurfaceBuffer* GetSurfaceBuffer() { return m_surfaceBuffer; }
+    virtual slWindowSurface GetSurfaceBuffer() { return m_surface; }
 
 protected:
     std::string m_title;
@@ -38,7 +38,7 @@ protected:
     uint32_t m_height{0};
     bool m_shouldClose{false};
     slWindow m_publicHandle{nullptr};
-    slWindowSurfaceBuffer* m_surfaceBuffer{nullptr};
+    slWindowSurface m_surface{nullptr};
 };
 
 } // namespace starlight

@@ -35,7 +35,7 @@ typedef struct slPhysicalDevice_t*      slPhysicalDevice;   // Acts as an abstra
 typedef struct slLogicalDevice_t*       slLogicalDevice;    // Handles physical devices, swapchains, and more.
 typedef struct slSwapchain_t*           slSwapchain;        // Swap chain.
 typedef struct slWindow_t*              slWindow;           // The actual abstracted window class, managed by the window instance.
-typedef struct slWindowSurfaceBuffer_t* slWindowSurfaceBuffer;
+typedef struct slWindowSurface_t* slWindowSurface;
 
 // CORE ENUMS
 
@@ -44,7 +44,9 @@ typedef enum slResult {
     SL_ERROR_INITIALIZATION_FAILED = -1,
     SL_ERROR_OUT_OF_MEMORY = -2,
     SL_ERROR_DEVICE_LOST = -3,
-    SL_ERROR_INVALID_PARAMETER = -4
+    SL_ERROR_INVALID_PARAMETER = -4,
+
+    SL_ERROR_VULKAN_INITIALIZATION_FAILED = -5,
 } slResult;
 
 typedef enum slStructureType {
@@ -53,6 +55,7 @@ typedef enum slStructureType {
     SL_STRUCT_TYPE_WINDOW_INSTANCE_DESC     = 2,        // Default Descriptor for the creation of a window instance.
     SL_STRUCT_TYPE_LOGICAL_DEVICE_DESC      = 3,        // Default Descriptor for the creation of a logical device.
     SL_STRUCT_TYPE_SWAPCHAIN_DESC           = 4,        // Default Descriptor for the creation of a swapchain.
+    SL_STRUCT_TYPE_WINDOW_SURFACE_DESC      = 5,
 } slStructureType;
 
 // Bitflags for graphics APIs to allow combining backends (e.g., Vulkan + DX12)
@@ -83,11 +86,52 @@ typedef enum slPresentMode {
 
 // EXTENSION SUB-STRUCTS
 
-typedef struct slVulkanWindowInfo {
+/**
+ * @brief Vulkan-specific initialization and extension configuration.
+ *
+ * Supply this structure through the @c pNext chain of a window-instance
+ * descriptor when the Vulkan backend requires application-provided names or
+ * version information. Counts must match the corresponding name arrays; the
+ * arrays and their strings are borrowed and must remain valid as required by
+ * the initialization call.
+ */
+typedef struct slVulkanInfo {
+    /** @brief Application or engine name reported to Vulkan. */
     const char* EngineName;
+
+    /** @brief Application or engine version, conventionally made with SL_MAKE_VERSION. */
     uint32_t EngineVersion;
+
+    /** @brief Vulkan API version requested by the application. */
     uint32_t ApiVersion;
-} slVulkanWindowInfo;
+
+    /** @brief Number of validation or other instance layers to enable. */
+    uint32_t EnabledLayerCount;
+
+    /** @brief Names of instance layers to enable; may be NULL when the count is zero. */
+    const char* const* ppEnabledLayerNames;
+
+    /** @brief Number of Vulkan instance extensions to enable. */
+    uint32_t EnabledExtensionCount;
+
+    /** @brief Names of instance extensions to enable; may be NULL when the count is zero. */
+    const char* const* ppEnabledExtensionNames;
+
+    /** @brief Number of Vulkan device extensions to enable. */
+    uint32_t EnabledDeviceExtensionCount;
+
+    /** @brief Names of device extensions to enable; may be NULL when the count is zero. */
+    const char* const* ppEnabledDeviceExtensionNames;
+
+    /**
+     * @brief Whether Starlight should add the extensions required to create
+     *        a surface for its window system.
+     *
+     * Set this to @c true when Starlight owns surface setup. Set it to @c false
+     * when the application manages the required window extensions itself.
+     */
+    bool IncludeStarlightWindowExtensions;
+} slVulkanInfo;
 
 typedef struct slSwapchainExtensions {
     bool HdrEnabled;
@@ -138,6 +182,21 @@ typedef enum slSurfaceFormat {
     SL_SURFACE_FORMAT_RGBA8_UNORM
 } slSurfaceFormat;
 
+typedef enum slColorSpace {
+    // Standard Dynamic Range (SDR)
+    SL_COLOR_SPACE_SRGB_NONLINEAR = 0, // Most common. standard sRGB gamma 2.2 curve (Rec. 709)
+    SL_COLOR_SPACE_SRGB_LINEAR,        // Linearized sRGB primaries (excellent for high-end rendering pipelines)
+
+    // Wide Color Gamut (WCG)
+    SL_COLOR_SPACE_DISPLAY_P3,         // Common on modern Apple displays, newer laptops, and mobile devices
+
+    // High Dynamic Range (HDR)
+    SL_COLOR_SPACE_HDR10_ST2084,       // Standard Ultra-HD HDR (BT.2020 gamut with SMPTE ST 2084 PQ curve)
+    SL_COLOR_SPACE_SCRGB_LINEAR,       // Windows HDR standard (Extended linear sRGB/Rec.709 that allows values > 1.0)
+    
+    SL_COLOR_SPACE_MAX_ENUM = 0x7FFFFFFF
+} slColorSpace;
+
 // DESCRIPTOR STRUCTS
 
 typedef struct slInitializationDesc {
@@ -159,9 +218,10 @@ typedef struct slWindowInstanceDesc {
     uint32_t Width;                 // The window's width (note that this is explicitly for the WINDOW surface, not the swapchain—allowing you to stretch, or upscale/downscale).
     uint32_t Height;                // The window's height (note that this is explicitly for the WINDOW surface, not the swapchain—allowing you to stretch, or upscale/downscale).
     bool ResizableWindow;           // Defaults to true
-    slWindowSurfaceBuffer* WindowSurfaceBuffer; // Pointer to the created window surface buffer. If not set, it'll resort to creating an internal surface buffer.
 
-    slVulkanWindowInfo vk;          // Vulkan-specific sub-struct
+    slWindowSurfaceDesc* pWindowSurface;
+
+    slVulkanInfo vk{nullptr};       // Vulkan-specific sub-struct
 } slWindowInstanceDesc;
 
 typedef struct slLogicalDeviceDesc {
@@ -181,13 +241,13 @@ typedef struct slSwapchainDesc {
     slSwapchainExtensions ext;          // Swapchain extension sub-struct.
 } slSwapchainDesc;
 
-typedef struct slWindowSurfaceBufferDesc {
+typedef struct slWindowSurfaceDesc {
     slStructureType sType;
-    uint32_t Width;
-    uint32_t Height;
-    slSurfaceFormat Format;
-    uint32_t BufferCount; // 1, 2, or 3
-} slWindowSurfaceBufferDesc;
+    const void* pNext;
+    
+    slSurfaceFormat RequestedFormat;
+    slColorSpace RequestedColorSpace;
+} slWindowSurfaceDesc;
 
 #ifdef __cplusplus
 }

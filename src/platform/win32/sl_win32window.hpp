@@ -16,7 +16,7 @@ public:
     ~Win32Window() override;
 
     // starlight::Window Interface
-    bool Initialize(const slWindowInstanceDesc& desc) override;
+    bool Initialize(const slWindowInstanceDesc& desc, slWindowSurface surface) override;
     void PollEvents(NativeEventCallback callback) override;
     bool ShouldClose() const override { return m_shouldClose; }
     void RequestClose() override { m_shouldClose = true; }
