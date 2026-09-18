@@ -3,17 +3,6 @@
 #include <vulkan/vulkan.h>
 #include <vector>
 
-struct vkWindowInstanceState {
-    VulkanContext context;
-    VulkanSurface surface;
-    VulkanSwapchain swapchain;
-    VulkanPipeline pipeline;
-    VulkanCommands commands;
-    VulkanSync sync;
-
-    bool dynamicRendering{false};
-};
-
 struct VulkanContext {
     VkInstance instance{VK_NULL_HANDLE};
     VkPhysicalDevice physicalDevice{VK_NULL_HANDLE};
@@ -56,4 +45,15 @@ struct VulkanSync {
     std::vector<VkSemaphore> imageAvailable;
     std::vector<VkSemaphore> renderFinished;
     std::vector<VkFence> inFlight;
+};
+
+struct vkWindowInstanceState {
+    VulkanContext context;
+    VulkanSurface surface;
+    VulkanSwapchain swapchain;
+    VulkanPipeline pipeline;
+    VulkanCommands commands;
+    VulkanSync sync;
+
+    bool dynamicRendering{false};
 };

@@ -7,10 +7,9 @@
 #include "sl_window.hpp"
 #include "api/vulkan/vk_internal.hpp"
 
-// Internal C++ definition backing public slInstance handle
 struct slInstance_t {
     bool initialized{false};
-    slGraphicsApiFlags enabledApis = SL_GRAPHICS_API_ALL;
+    slGraphicsApiFlags enabledApis = static_cast<slGraphicsApiFlags>(SL_GRAPHICS_API_ALL);
 
     bool handleEvents{false};
     slEventCallback eventCallback{nullptr};
@@ -19,29 +18,21 @@ struct slInstance_t {
     std::vector<slWindowInstance> instances;
 };
 
-// Internal C++ definition backing public slWindowInstance handle
 struct slWindowInstance_t {
     std::string appName;
     uint32_t appVersion{0};
     uint32_t width{800};
     uint32_t height{600};
     bool resizableWindow{true};
+
+    slGraphicsApi selectedApi;
+
+    void* pApiContext{nullptr};
     
     slLogicalDevice activeLogicalDevice{nullptr};
-    std::vector<slPhysicalDevice> physicalDevices;
     std::vector<std::unique_ptr<starlight::Window>> windows;
-
-    struct vkWindowInstanceState* pVk; // DO NOT ACCESS PUBLICLY! MAY CAUSE CATASTROPHIC ERRORS.
 };
 
-// Internal C++ definition backing public slLogicalDevice handle (Deferred State)
-struct slLogicalDevice_t {
-    std::vector<slPhysicalDevice> physicalDevices;
-    uint32_t selectedDeviceIndex{0};
-    slSwapchainDesc swapchainConfig{};
-};
-
-// Internal C++ definition backing public slWindow handle
 struct slWindow_t {
     starlight::Window* internalWindow{nullptr};
     slWindowInstance parentInstance{nullptr};
@@ -60,7 +51,33 @@ struct slNativeWindowHandles {
 #endif
 };
 
-// Internal C++ definition backing public slWindowSurfaceBuffer handle
+struct slPhysicalDevice_t {
+    std::string deviceName;
+    uint32_t vendorID{0};
+    uint32_t deviceID{0};
+    bool isDiscreteGPU{false};
+
+    void* pNativeDeviceHandle{nullptr}; 
+};
+
+struct slLogicalDevice_t {
+    slPhysicalDevice physicalDevice{nullptr};
+    bool dynamicRenderingEnabled{false};
+
+    void* pDeviceData{nullptr}; 
+};
+
+struct slSwapchain_t {
+    slWindow targetWindow{nullptr};
+    uint32_t width{0};
+    uint32_t height{0};
+    slSurfaceFormat format{SL_SURFACE_FORMAT_BGRA8_UNORM};
+    slColorSpace colorSpace{SL_COLOR_SPACE_SRGB_NONLINEAR};
+    uint32_t currentImageIndex{0};
+
+    void* pSwapchainData{nullptr}; 
+};
+
 struct slWindowSurface_t {
     slWindow parentWindow{nullptr};
     slStructureType sType{SL_STRUCT_TYPE_NONE};
@@ -68,5 +85,5 @@ struct slWindowSurface_t {
     slSurfaceFormat format{SL_SURFACE_FORMAT_BGRA8_UNORM};
     slColorSpace colorSpace{SL_COLOR_SPACE_SRGB_NONLINEAR};
 
-    VkSurfaceKHR vkSurface{VK_NULL_HANDLE};
+    void* pSurfaceData{nullptr}; 
 };

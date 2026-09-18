@@ -43,6 +43,14 @@ SL_API void slDestroyWindowInstance(slWindowInstance instance);
 SL_API slResult slEnumeratePhysicalDevices(slWindowInstance instance, uint32_t* pCount, slPhysicalDevice* pOutDevices);
 
 /**
+ * @brief Retrieves the properties of a physical device.
+ * @param device The physical device whose properties are queried.
+ * @param pProperties Pointer to receive the physical device properties.
+ * @return SL_SUCCESS on success, or an slResult error code.
+ */
+SL_API slResult slGetPhysicalDeviceProperties(slPhysicalDevice device, slPhysicalDeviceProperties* pProperties);
+
+/**
  * @brief Configures a logical device and swapchain configuration handle (deferred creation).
  * @param pDeviceDesc Configuration descriptor for selecting physical devices and logical queues.
  * @param pSwapchainDesc Swapchain configuration descriptor.
@@ -92,7 +100,7 @@ SL_API void slPollEvents(void);
  * @param pOutBuffer Pointer to receive the allocated surface buffer handle.
  * @return SL_SUCCESS on success, or an slResult error code.
  */
-SL_API slResult slCreateWindowSurfaceBuffer(slWindow window, const slWindowSurfaceBufferDesc* pDesc, slWindowSurfaceBuffer* pOutBuffer);
+SL_API slResult slCreateWindowSurface(slWindow window, const slWindowSurfaceDesc* pDesc, slWindowSurface* pOutBuffer);
 
 /**
  * @brief Maps a surface buffer for CPU access.
@@ -101,20 +109,20 @@ SL_API slResult slCreateWindowSurfaceBuffer(slWindow window, const slWindowSurfa
  * @param pRowPitch Pointer to receive the number of bytes between adjacent rows.
  * @return SL_SUCCESS on success, or an slResult error code.
  */
-SL_API slResult slMapWindowSurfaceBuffer(slWindowSurfaceBuffer buffer, void** pPixels, uint32_t* pRowPitch);
+SL_API slResult slMapWindowSurfaceBuffer(slWindowSurface buffer, void** pPixels, uint32_t* pRowPitch);
 
 /**
  * @brief Presents the current contents of a surface buffer to its window.
  * @param buffer The surface buffer to present.
  * @return SL_SUCCESS on success, or an slResult error code.
  */
-SL_API slResult slPresentWindowSurfaceBuffer(slWindowSurfaceBuffer buffer);
+SL_API slResult slPresentWindowSurfaceBuffer(slWindowSurface buffer);
 
 /**
  * @brief Destroys a surface buffer and releases its associated storage.
  * @param buffer The surface buffer handle to destroy.
  */
-SL_API void slDestroyWindowSurfaceBuffer(slWindowSurfaceBuffer buffer);
+SL_API void slDestroyWindowSurfaceBuffer(slWindowSurface buffer);
 
 #ifdef __cplusplus
 }

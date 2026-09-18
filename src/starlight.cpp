@@ -1,9 +1,9 @@
 #include <starlight/starlight.h>
-
 #include <algorithm>
-
 #include "core/sl_internal.hpp"
 #include "platform/win32/sl_win32window.hpp"
+#include "core/api/vulkan/vk_types.hpp"
+
 
 // Global Starlight internal state
 static slInstance_t g_starlightInstance{};
@@ -127,9 +127,11 @@ SL_API slResult slCreateWindowInstance(const slWindowInstanceDesc* pDesc, slWind
     instance->width = pDesc->Width;
     instance->height = pDesc->Height;
     instance->resizableWindow = pDesc->ResizableWindow;
+    instance->pApiContext = nullptr;
 
-    if (g_starlightInstance.enabledApis & SL_GRAPHICS_API_VULKAN_BIT) { // Vulkan enabled, initialize it.
-        instance->pVk = new vkWindowInstanceState();
+    if (pDesc->graphicsApi == SL_GRAPHICS_API_VULKAN) { // Vulkan enabled, initialize it.
+        auto* vkCtx = new vkWindowInstanceState();
+        instance->pApiContext = vkCtx;
 
         VkApplicationInfo appInfo{VK_STRUCTURE_TYPE_APPLICATION_INFO};
         appInfo.pApplicationName = instance->appName.c_str();
@@ -150,11 +152,12 @@ SL_API slResult slCreateWindowInstance(const slWindowInstanceDesc* pDesc, slWind
         createInfo.ppEnabledExtensionNames = pDesc->vk.ppEnabledExtensionNames;
         createInfo.ppEnabledLayerNames = pDesc->vk.ppEnabledLayerNames;
 
-        if (vkCreateInstance(&createInfo, nullptr, &instance->pVk->context.instance) != VK_SUCCESS) {
-            delete instance->pVk;
+        if (vkCreateInstance(&createInfo, nullptr, &vkCtx->context.instance) != VK_SUCCESS) {
+            delete vkCtx;
             delete instance;
-            return SL_ERROR_VULKAN_INITIALIZATION_FAILED;
+            return SL_ERROR_WINSTANCE_INITIALIZATION_FAILED;
         }
+
     }
 
     g_starlightInstance.instances.push_back(instance);
@@ -226,6 +229,88 @@ SL_API bool slWindowShouldClose(slWindow window) {
         return true;
     }
     return window->internalWindow->ShouldClose();
+}
+
+
+SL_API slResult slEnumeratePhysicalDevices(slWindowInstance instance, uint32_t* pCount, slPhysicalDevice* pOutDevices) {
+    if (!g_starlightInstance.initialized || !instance || !pCount) {
+        return SL_ERROR_INVALID_PARAMETER;
+    }
+
+    auto* vkCtx = static_cast<vkWindowInstanceState*>(instance->pApiContext);
+    if (!vkCtx || vkCtx->context.instance == VK_NULL_HANDLE) {
+        return SL_ERROR_WINSTANCE_INVALID_CONTEXT;
+    }
+
+    uint32_t vkDeviceCount = 0;
+    if (vkEnumeratePhysicalDevices(vkCtx->context.instance, &vkDeviceCount, nullptr) != VK_SUCCESS) {
+        return SL_ERROR_PHYSICAL_DEVICE_ENUMERATION_FAILED;
+    }
+
+    if (pOutDevices == nullptr) {
+        *pCount = vkDeviceCount;
+        return SL_SUCCESS;
+    }
+
+    std::vector<VkPhysicalDevice> vkDevices(vkDeviceCount);
+    if (vkEnumeratePhysicalDevices(vkCtx->context.instance, &vkDeviceCount, vkDevices.data()) != VK_SUCCESS) {
+        return SL_ERROR_PHYSICAL_DEVICE_ENUMERATION_FAILED;
+    }
+
+    uint32_t devicesToCopy = (*pCount < vkDeviceCount) ? *pCount : vkDeviceCount;
+    for (uint32_t i = 0; i < devicesToCopy; ++i) {
+        // Query hardware metrics natively
+        VkPhysicalDeviceProperties properties;
+        vkGetPhysicalDeviceProperties(vkDevices[i], &properties);
+
+        VkPhysicalDeviceFeatures features;
+        vkGetPhysicalDeviceFeatures(vkDevices[i], &features);
+
+        // 2. Allocate the public-facing C wrapper node
+        auto* outGpu = new slPhysicalDevice_t();
+        outGpu->deviceName = properties.deviceName;
+        outGpu->vendorID = properties.vendorID;
+        outGpu->deviceID = properties.deviceID;
+        outGpu->isDiscreteGPU = (properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU);
+
+        // 3. Allocate our private backend data struct and map it to the void* slot!
+        auto* vkGpuData = new VulkanPhysicalDeviceData();
+        vkGpuData->handle = vkDevices[i];
+        vkGpuData->properties = properties;
+        vkGpuData->features = features;
+
+        outGpu->pNativeDeviceHandle = vkGpuData; 
+
+        pOutDevices[i] = outGpu;
+    }
+
+    *pCount = devicesToCopy;
+    return SL_SUCCESS;
+}
+
+SL_API slResult slGetPhysicalDeviceProperties(slPhysicalDevice device, slPhysicalDeviceProperties* pProperties) {
+    if (!device || !pProperties) {
+        return SL_ERROR_INVALID_PARAMETER;
+    }
+
+    memset(pProperties, 0, sizeof(slPhysicalDeviceProperties));
+
+    strncpy(pProperties->DeviceName, device->deviceName.c_str(), sizeof(pProperties->DeviceName) - 1);
+    
+    pProperties->VendorID = device->vendorID;
+    pProperties->DeviceID = device->deviceID;
+    
+    if (device->isDiscreteGPU) {
+        pProperties->DeviceType = SL_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
+    } else {
+        // TODO: Expand internal slPhysicalDevice_t to track details precisely
+        pProperties->DeviceType = SL_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU;
+    }
+
+    // TODO: Map over memory tracking metrics
+    pProperties->DedicatedVideoMemory = 0; 
+
+    return SL_SUCCESS;
 }
 
 SL_API void slPollEvents(void) {

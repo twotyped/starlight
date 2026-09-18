@@ -35,7 +35,7 @@ int main() {
     slCreateWindowInstance(&instanceDesc, &instance);
 
     slWindow window = nullptr;
-    if (slCreateWindow(instance, nullptr, &window) != SL_SUCCESS) {
+    if (slCreateWindow(instance, nullptr, &window, nullptr) != SL_SUCCESS) {
         std::cerr << "Failed to create window!\n";
         slShutdown();
         return -1;

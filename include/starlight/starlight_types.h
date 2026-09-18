@@ -45,8 +45,9 @@ typedef enum slResult {
     SL_ERROR_OUT_OF_MEMORY = -2,
     SL_ERROR_DEVICE_LOST = -3,
     SL_ERROR_INVALID_PARAMETER = -4,
-
-    SL_ERROR_VULKAN_INITIALIZATION_FAILED = -5,
+    SL_ERROR_WINSTANCE_INITIALIZATION_FAILED = -5,
+    SL_ERROR_WINSTANCE_INVALID_CONTEXT = -6,
+    SL_ERROR_PHYSICAL_DEVICE_ENUMERATION_FAILED = -7,
 } slResult;
 
 typedef enum slStructureType {
@@ -77,12 +78,29 @@ typedef enum slGraphicsApiFlagBits {
     SL_GRAPHICS_API_WINDOWS        = (SL_GRAPHICS_API_VULKAN_BIT | SL_GRAPHICS_API_DIRECTX12_BIT | SL_GRAPHICS_API_DIRECTX11_BIT) // Default on Windows.
 } slGraphicsApiFlagBits;
 
+typedef enum slGraphicsApi {
+    SL_GRAPHICS_API_NONE        = 0,
+    SL_GRAPHICS_API_VULKAN      = 1,
+    SL_GRAPHICS_API_DIRECTX11   = 2,
+    SL_GRAPHICS_API_DIRECTX12   = 3,
+    SL_GRAPHICS_API_METAL       = 4,
+    SL_GRAPHICS_API_OPENGL      = 5
+} slGraphicsApi;
+
 typedef enum slPresentMode {
     SL_PRESENT_MODE_IMMEDIATE = 0,          // Not recommended! The GPU sends frames to the monitor immediately—can lead to intense screen tearing.
     SL_PRESENT_MODE_VSYNC = 1,              // Enables V-Sync (FIFO). The GPU waits for the monitor to finish its refresh cycle before sending a new frame.
     SL_PRESENT_MODE_TRIPLE_BUFFER = 2,      // The default (Mailbox). The GPU uses three frame buffers to prep frames ahead of time, eliminating V-Sync wait times.
     SL_PRESENT_MODE_MAILBOX = 2             // Alias for triple buffering.
 } slPresentMode;
+
+typedef enum slPhysicalDeviceType {
+    SL_PHYSICAL_DEVICE_TYPE_OTHER = 0,
+    SL_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU,
+    SL_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU,
+    SL_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU,
+    SL_PHYSICAL_DEVICE_TYPE_CPU,
+} slPhysicalDeviceType;
 
 // EXTENSION SUB-STRUCTS
 
@@ -197,6 +215,14 @@ typedef enum slColorSpace {
     SL_COLOR_SPACE_MAX_ENUM = 0x7FFFFFFF
 } slColorSpace;
 
+typedef struct slPhysicalDeviceProperties {
+    char DeviceName[256];
+    uint32_t VendorID;
+    uint32_t DeviceID;
+    slPhysicalDeviceType DeviceType;
+    uint64_t DedicatedVideoMemory;
+} slPhysicalDeviceProperties;
+
 // DESCRIPTOR STRUCTS
 
 typedef struct slInitializationDesc {
@@ -210,37 +236,6 @@ typedef struct slInitializationDesc {
     void* EventUserData;
 } slInitializationDesc;
 
-typedef struct slWindowInstanceDesc {
-    slStructureType sType;          // Should be set to SL_STRUCT_TYPE_WINDOW_INSTANCE_DESC
-    const void* pNext;              // Pointer to extension-specific structures, or NULL
-    const char* ApplicationName;    // The application name, equivalent to the window name.
-    uint32_t ApplicationVersion;    // The version of the application. Currently useless. Should use SL_MAKE_VERSION(major, minor, patch).
-    uint32_t Width;                 // The window's width (note that this is explicitly for the WINDOW surface, not the swapchain—allowing you to stretch, or upscale/downscale).
-    uint32_t Height;                // The window's height (note that this is explicitly for the WINDOW surface, not the swapchain—allowing you to stretch, or upscale/downscale).
-    bool ResizableWindow;           // Defaults to true
-
-    slWindowSurfaceDesc* pWindowSurface;
-
-    slVulkanInfo vk{nullptr};       // Vulkan-specific sub-struct
-} slWindowInstanceDesc;
-
-typedef struct slLogicalDeviceDesc {
-    slStructureType sType;              // Should be set to SL_STRUCT_TYPE_LOGICAL_DEVICE_DESC
-    const void* pNext;                  // Pointer to extension-specific structures, or NULL
-    slPhysicalDevice* pPhysicalDevices; // Pointer to array of handles.
-    uint32_t PhysicalDeviceCount;       // The number of physical device enumerated over.
-    uint32_t SelectedDeviceIndex;       // Default is 0 (i.e., the primary device/GPU)
-} slLogicalDeviceDesc;
-
-typedef struct slSwapchainDesc {
-    slStructureType sType;              // Should be set to SL_STRUCT_TYPE_SWAPCHAIN_DESC
-    const void* pNext;                  // Pointer to extension-specific structures, or NULL
-    uint32_t SurfaceBuffers;            // 1 for immediate, 2 for double buffering, 3 for triple buffering, etc.
-    slPresentMode PresentMode;          // Selects the presentation mode (refer to slPresentMode).
-    bool Clipped;                       // Whether the swapchain can discard rendering operations for pixels that are obscured or completely hidden from view.
-    slSwapchainExtensions ext;          // Swapchain extension sub-struct.
-} slSwapchainDesc;
-
 typedef struct slWindowSurfaceDesc {
     slStructureType sType;
     const void* pNext;
@@ -248,6 +243,58 @@ typedef struct slWindowSurfaceDesc {
     slSurfaceFormat RequestedFormat;
     slColorSpace RequestedColorSpace;
 } slWindowSurfaceDesc;
+
+typedef struct slWindowInstanceDesc {
+    slStructureType sType;          // Should be set to SL_STRUCT_TYPE_WINDOW_INSTANCE_DESC
+    const void* pNext;              // Pointer to extension-specific structures, or NULL:w
+
+    const char* ApplicationName;    // The application name, equivalent to the window name.
+    uint32_t ApplicationVersion;    // The version of the application. Currently useless. Should use SL_MAKE_VERSION(major, minor, patch).
+    uint32_t Width;                 // The window's width (note that this is explicitly for the WINDOW surface, not the swapchain—allowing you to stretch, or upscale/downscale).
+    uint32_t Height;                // The window's height (note that this is explicitly for the WINDOW surface, not the swapchain—allowing you to stretch, or upscale/downscale).
+    bool ResizableWindow;           // Defaults to true
+    slGraphicsApi graphicsApi;      // The active graphics API of the window instance.
+
+    slWindowSurfaceDesc* pWindowSurface;
+
+    slVulkanInfo vk{nullptr};       // Vulkan-specific sub-struct
+} slWindowInstanceDesc;
+
+// typedef struct slLogicalDeviceDesc {
+//     slStructureType sType;              // Should be set to SL_STRUCT_TYPE_LOGICAL_DEVICE_DESC
+//     const void* pNext;                  // Pointer to extension-specific structures, or NULL
+//     slPhysicalDevice* pPhysicalDevices; // Pointer to array of handles.
+//     uint32_t PhysicalDeviceCount;       // The number of physical device enumerated over.
+//     uint32_t SelectedDeviceIndex;       // Default is 0 (i.e., the primary device/GPU)
+// } slLogicalDeviceDesc;
+
+// typedef struct slSwapchainDesc {
+//     slStructureType sType;              // Should be set to SL_STRUCT_TYPE_SWAPCHAIN_DESC
+//     const void* pNext;                  // Pointer to extension-specific structures, or NULL
+//     uint32_t SurfaceBuffers;            // 1 for immediate, 2 for double buffering, 3 for triple buffering, etc.
+//     slPresentMode PresentMode;          // Selects the presentation mode (refer to slPresentMode).
+//     bool Clipped;                       // Whether the swapchain can discard rendering operations for pixels that are obscured or completely hidden from view.
+//     slSwapchainExtensions ext;          // Swapchain extension sub-struct.
+// } slSwapchainDesc;
+
+typedef struct slLogicalDeviceDesc {
+    slStructureType sType;
+    const void* pNext;
+
+    slPhysicalDevice physicalDevice;
+    
+    bool EnableDynamicRendering;
+    bool EnableAnisotropicFiltering;
+} slLogicalDeviceDesc;
+
+typedef struct slSwapchainDesc {
+    slStructureType sType;
+    const void* pNext;
+
+    slWindow targetWindow;
+    uint32_t BufferCount;
+    slPresentMode PresentMode;
+} slSwapchainDesc;
 
 #ifdef __cplusplus
 }
