@@ -49,7 +49,7 @@ int main() {
 
     std::cout << "Found " << deviceCount << " physical device(s):\n";
 
-    if (deviceCount < 0) {
+    if (deviceCount > 0) {
         for (slPhysicalDevice device : devices) {
             slPhysicalDeviceProperties props;
             if (slGetPhysicalDeviceProperties(device, &props) == SL_SUCCESS) {
@@ -59,7 +59,17 @@ int main() {
 
         std::cout << "Selecting 0 (default)" << std::endl;
     } else {
-        std::cerr << "We need a physical device to select.\n";
+        std::cerr << "No compatible physical devices found to select.\n";
+        return -1;
+    }
+
+    slLogicalDeviceDesc deviceDesc{SL_STRUCT_TYPE_LOGICAL_DEVICE_DESC};
+    deviceDesc.physicalDevice = devices[0];
+    deviceDesc.EnableDynamicRendering = true;
+
+    slLogicalDevice device;
+    if (slCreateLogicalDevice(instance, &deviceDesc, &device) != SL_SUCCESS) {
+        std::cerr << "Failed to create Starlight logical device layer.\n";
         return -1;
     }
 
@@ -68,11 +78,22 @@ int main() {
     surfaceDesc.RequestedFormat = SL_SURFACE_FORMAT_BGRA8_UNORM;
 
     slWindow window{nullptr};
-    if (slCreateWindow(instance, nullptr, &window, &surfaceDesc) != SL_SUCCESS) {
+    if (slCreateWindow(instance, device, &window, &surfaceDesc) != SL_SUCCESS) {
         std::cerr << "Failed to create window!\n";
         slShutdown();
         return -1;
     }
+
+    // slSwapchainDesc swapchainDesc{SL_STRUCT_TYPE_SWAPCHAIN_DESC};
+    // swapchainDesc.targetWindow = window;
+    // swapchainDesc.BufferCount = 2;
+    // swapchainDesc.PresentMode = SL_PRESENT_MODE_VSYNC;
+
+    // slSwapchain swapchain;
+    // if (slCreateSwapchain(device, &swapchainDesc, &swapchain) != SL_SUCCESS) {
+    //     std::cerr << "Failed to create Starlight swapchain and bind it to target window.\n";
+    //     return -1;
+    // }
 
     while (!slWindowShouldClose(window)) {
         slPollEvents();

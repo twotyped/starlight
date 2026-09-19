@@ -1,9 +1,9 @@
 #include <starlight/starlight.h>
-#include <algorithm>
 #include "core/sl_internal.hpp"
 #include "platform/win32/sl_win32window.hpp"
 #include "core/api/vulkan/vk_types.hpp"
-
+#include <algorithm>
+#include <set>
 
 // Global Starlight internal state
 static slInstance_t g_starlightInstance{};
@@ -311,6 +311,276 @@ SL_API slResult slGetPhysicalDeviceProperties(slPhysicalDevice device, slPhysica
     pProperties->DedicatedVideoMemory = 0; 
 
     return SL_SUCCESS;
+}
+
+SL_API slResult slCreateLogicalDevice(slWindowInstance instance, const slLogicalDeviceDesc* pDeviceDesc, slLogicalDevice* pOutDevice) {
+    if (!g_starlightInstance.initialized || !instance || !pDeviceDesc || !pDeviceDesc->physicalDevice) {
+        return SL_ERROR_INVALID_PARAMETER;
+    }
+
+    auto* vkCtx = static_cast<vkWindowInstanceState*>(instance->pApiContext);
+    if (!vkCtx || vkCtx->context.instance == VK_NULL_HANDLE) {
+        return SL_ERROR_WINSTANCE_INVALID_CONTEXT;
+    }
+
+    auto* vkGpuData = static_cast<VulkanPhysicalDeviceData*>(pDeviceDesc->physicalDevice->pNativeDeviceHandle);
+    VkPhysicalDevice physicalDevice = vkGpuData->handle;
+
+    auto* outDevice = new slLogicalDevice_t();
+    outDevice->physicalDevice = pDeviceDesc->physicalDevice;
+    outDevice->dynamicRenderingEnabled = pDeviceDesc->EnableDynamicRendering;
+
+    auto* vkDeviceData = new VulkanLogicalDeviceData();
+    outDevice->pDeviceData = vkDeviceData;
+
+    uint32_t queueFamilyCount = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, nullptr);
+    std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+    vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, queueFamilies.data());
+
+    for (uint32_t i = 0; i < queueFamilyCount; ++i) {
+        if (queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+            vkDeviceData->graphicsQueueFamilyIndex = i;
+        }
+        
+        // Check if this queue family supports presentation to our window surface
+        // (Note: This requires a valid surface initialized on the window instance!)
+        VkBool32 presentSupport = VK_FALSE;
+        if (vkCtx->surface.surface != VK_NULL_HANDLE) {
+            vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, vkCtx->surface.surface, &presentSupport);
+        }
+        if (presentSupport) {
+            vkDeviceData->presentQueueFamilyIndex = i;
+        }
+
+        if (vkDeviceData->graphicsQueueFamilyIndex != 0xFFFFFFFF && vkDeviceData->presentQueueFamilyIndex != 0xFFFFFFFF) {
+            break; // Found matching queues
+        }
+    }
+
+    // Setup queue creation structures
+    std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
+    std::set<uint32_t> uniqueQueueFamilies = { vkDeviceData->graphicsQueueFamilyIndex, vkDeviceData->presentQueueFamilyIndex };
+    float queuePriority = 1.0f;
+
+    for (uint32_t queueFamily : uniqueQueueFamilies) {
+        VkDeviceQueueCreateInfo queueCreateInfo{VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO};
+        queueCreateInfo.queueFamilyIndex = queueFamily;
+        queueCreateInfo.queueCount = 1;
+        queueCreateInfo.pQueuePriorities = &queuePriority;
+        queueCreateInfos.push_back(queueCreateInfo);
+    }
+
+    // 5. Build Logical Device Configuration
+    VkDeviceCreateInfo createInfo{VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
+    createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
+    createInfo.pQueueCreateInfos = queueCreateInfos.data();
+
+    // Standard device extensions required for swapchain presentation
+    std::vector<const char*> deviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+    createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
+    createInfo.ppEnabledExtensionNames = deviceExtensions.data();
+
+    // Handle Modern Pathways: Vulkan 1.3 Dynamic Rendering Toggle
+    VkPhysicalDeviceDynamicRenderingFeatures dynamicRenderingFeatures{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES};
+    if (pDeviceDesc->EnableDynamicRendering) {
+        dynamicRenderingFeatures.dynamicRendering = VK_TRUE;
+        createInfo.pNext = &dynamicRenderingFeatures; // Chain modern feature activation rules
+    }
+
+    // 6. Instantiate the Hardware Device
+    if (vkCreateDevice(physicalDevice, &createInfo, nullptr, &vkDeviceData->logicalDevice) != VK_SUCCESS) {
+        delete vkDeviceData;
+        delete outDevice;
+        return SL_ERROR_LOGICAL_DEVICE_CREATION_FAILED;
+    }
+
+    // Cache the execution queues directly for your render cycles
+    vkGetDeviceQueue(vkDeviceData->logicalDevice, vkDeviceData->graphicsQueueFamilyIndex, 0, &vkDeviceData->graphicsQueue);
+    vkGetDeviceQueue(vkDeviceData->logicalDevice, vkDeviceData->presentQueueFamilyIndex, 0, &vkDeviceData->presentQueue);
+
+    *pOutDevice = outDevice;
+
+    return SL_SUCCESS;
+}
+
+SL_API void slDestroyLogicalDevice(slLogicalDevice device) {
+    if (!device) return;
+
+    if (device->pDeviceData) {
+        auto* vkDeviceData = static_cast<VulkanLogicalDeviceData*>(device->pDeviceData);
+
+        if (vkDeviceData->logicalDevice != VK_NULL_HANDLE) {
+            // Force the CPU to block until the GPU finishes all active command queues
+            vkDeviceWaitIdle(vkDeviceData->logicalDevice);
+
+            // Destroy the logical hardware device connection
+            vkDestroyDevice(vkDeviceData->logicalDevice, nullptr);
+        }
+
+        delete vkDeviceData;
+    }
+
+    delete device;
+}
+
+SL_API slResult slCreateSwapchain(slLogicalDevice device, const slSwapchainDesc* pDesc, slSwapchain* pOutSwapchain) {
+    if (!g_starlightInstance.initialized || !device || !pDesc || !pDesc->targetWindow || !pOutSwapchain) {
+        return SL_ERROR_INVALID_PARAMETER;
+    }
+
+    // 1. Unpack our core logical device handles
+    auto* vkDeviceData = static_cast<VulkanLogicalDeviceData*>(device->pDeviceData);
+    auto* vkGpuData = static_cast<VulkanPhysicalDeviceData*>(device->physicalDevice->pNativeDeviceHandle);
+    
+    // 2. Safely grab the surface associated with the target window instance
+    // (Assuming the parent instance context tracked the live VkSurfaceKHR)
+    auto* vkWindowInstance = static_cast<vkWindowInstanceState*>(pDesc->targetWindow->parentInstance->pApiContext);
+    VkSurfaceKHR surface = vkWindowInstance->surface.surface;
+
+    if (vkDeviceData->logicalDevice == VK_NULL_HANDLE || surface == VK_NULL_HANDLE) {
+        return SL_ERROR_WINSTANCE_INVALID_CONTEXT;
+    }
+
+    // 3. Query Surface Capabilities to choose optimal sizing boundaries
+    VkSurfaceCapabilitiesKHR capabilities;
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(vkGpuData->handle, surface, &capabilities);
+
+    VkExtent2D swapchainExtent = capabilities.currentExtent;
+    // If the system sets extent to 0xFFFFFFFF, it means match the target window coordinates exactly
+    if (swapchainExtent.width == 0xFFFFFFFF) {
+        swapchainExtent.width = std::clamp(pDesc->targetWindow->parentInstance->width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
+        swapchainExtent.height = std::clamp(pDesc->targetWindow->parentInstance->height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
+    }
+
+    // Determine target buffering constraints
+    uint32_t imageCount = pDesc->BufferCount;
+    if (capabilities.maxImageCount > 0 && imageCount > capabilities.maxImageCount) {
+        imageCount = capabilities.maxImageCount;
+    }
+    if (imageCount < capabilities.minImageCount) {
+        imageCount = capabilities.minImageCount;
+    }
+
+    // 4. Map Abstract Formats to Vulkan Layout Configurations
+    VkSurfaceFormatKHR surfaceFormat{};
+    surfaceFormat.format = VK_FORMAT_B8G8R8A8_UNORM; // Match SL_SURFACE_FORMAT_BGRA8_UNORM
+    surfaceFormat.colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+
+    // Map Present Mode
+    VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR; // Standard default VSync
+    if (pDesc->PresentMode == SL_PRESENT_MODE_IMMEDIATE) presentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
+    else if (pDesc->PresentMode == SL_PRESENT_MODE_MAILBOX) presentMode = VK_PRESENT_MODE_MAILBOX_KHR;
+
+    // 5. Populate standard Vulkan Swapchain Creation Structures
+    VkSwapchainCreateInfoKHR createInfo{VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR};
+    createInfo.surface = surface;
+    createInfo.minImageCount = imageCount;
+    createInfo.imageFormat = surfaceFormat.format;
+    createInfo.imageColorSpace = surfaceFormat.colorSpace;
+    createInfo.imageExtent = swapchainExtent;
+    createInfo.imageArrayLayers = 1;
+    createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+
+    // Handle concurrent execution if presentation and graphics queues differ
+    uint32_t queueFamilyIndices[] = { vkDeviceData->graphicsQueueFamilyIndex, vkDeviceData->presentQueueFamilyIndex };
+    if (vkDeviceData->graphicsQueueFamilyIndex != vkDeviceData->presentQueueFamilyIndex) {
+        createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+        createInfo.queueFamilyIndexCount = 2;
+        createInfo.pQueueFamilyIndices = queueFamilyIndices;
+    } else {
+        createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    }
+
+    createInfo.preTransform = capabilities.currentTransform;
+    createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    createInfo.presentMode = presentMode;
+    createInfo.clipped = VK_TRUE;
+
+    // 6. Allocate our wrapper node
+    auto* outSwapchain = new slSwapchain_t();
+    outSwapchain->targetWindow = pDesc->targetWindow;
+    outSwapchain->width = swapchainExtent.width;
+    outSwapchain->height = swapchainExtent.height;
+    
+    auto* vkSwapchainData = new VulkanSwapchainData();
+    outSwapchain->pSwapchainData = vkSwapchainData;
+
+    if (vkCreateSwapchainKHR(vkDeviceData->logicalDevice, &createInfo, nullptr, &vkSwapchainData->handle) != VK_SUCCESS) {
+        delete vkSwapchainData;
+        delete outSwapchain;
+        return SL_ERROR_SWAPCHAIN_CREATION_FAILED;
+    }
+
+    // 7. Extract the Swapchain Image Views
+    uint32_t actualImageCount = 0;
+    vkGetSwapchainImagesKHR(vkDeviceData->logicalDevice, vkSwapchainData->handle, &actualImageCount, nullptr);
+    vkSwapchainData->images.resize(actualImageCount);
+    vkGetSwapchainImagesKHR(vkDeviceData->logicalDevice, vkSwapchainData->handle, &actualImageCount, vkSwapchainData->images.data());
+
+    vkSwapchainData->imageViews.resize(actualImageCount);
+    for (uint32_t i = 0; i < actualImageCount; ++i) {
+        VkImageViewCreateInfo viewInfo{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
+        viewInfo.image = vkSwapchainData->images[i];
+        viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        viewInfo.format = surfaceFormat.format;
+        viewInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+        viewInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+        viewInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+        viewInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+        viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        viewInfo.subresourceRange.baseMipLevel = 0;
+        viewInfo.subresourceRange.levelCount = 1;
+        viewInfo.subresourceRange.baseArrayLayer = 0;
+        viewInfo.subresourceRange.layerCount = 1;
+
+        if (vkCreateImageView(vkDeviceData->logicalDevice, &viewInfo, nullptr, &vkSwapchainData->imageViews[i]) != VK_SUCCESS) {
+            return SL_ERROR_IMAGE_VIEW_CREATION_FAILED;
+        }
+    }
+
+    // TODO: Append legacy VkRenderPass generation here if dynamicRenderingEnabled is false.
+
+    *pOutSwapchain = outSwapchain;
+    return SL_SUCCESS;
+}
+
+SL_API void slDestroySwapchain(slSwapchain swapchain) {
+    if (!swapchain) return;
+
+    if (swapchain->pSwapchainData) {
+        auto* vkSwapData = static_cast<VulkanSwapchainData*>(swapchain->pSwapchainData);
+        
+        if (swapchain->targetWindow && swapchain->targetWindow->parentInstance) {
+            auto* vkCtx = static_cast<vkWindowInstanceState*>(swapchain->targetWindow->parentInstance->pApiContext);
+            VkDevice logicalDevice = vkCtx->context.logicalDevice; 
+
+            if (logicalDevice != VK_NULL_HANDLE) {
+                // Destroy the created framebuffers (if legacy route compiled them)
+                for (VkFramebuffer framebuffer : vkSwapData->framebuffers) {
+                    if (framebuffer != VK_NULL_HANDLE) {
+                        vkDestroyFramebuffer(logicalDevice, framebuffer, nullptr);
+                    }
+                }
+                
+                // Destroy the concrete Image Views
+                for (VkImageView view : vkSwapData->imageViews) {
+                    if (view != VK_NULL_HANDLE) {
+                        vkDestroyImageView(logicalDevice, view, nullptr);
+                    }
+                }
+
+                // Destroy the primary Swapchain handle itself
+                if (vkSwapData->handle != VK_NULL_HANDLE) {
+                    vkDestroySwapchainKHR(logicalDevice, vkSwapData->handle, nullptr);
+                }
+            }
+        }
+
+        delete vkSwapData;
+    }
+
+    delete swapchain;
 }
 
 SL_API void slPollEvents(void) {

@@ -52,18 +52,34 @@ SL_API slResult slGetPhysicalDeviceProperties(slPhysicalDevice device, slPhysica
 
 /**
  * @brief Configures a logical device and swapchain configuration handle (deferred creation).
+ * @param instance The active window instance.
  * @param pDeviceDesc Configuration descriptor for selecting physical devices and logical queues.
  * @param pSwapchainDesc Swapchain configuration descriptor.
  * @param pOutDevice Pointer to receive the allocated slLogicalDevice handle.
  * @return SL_SUCCESS on success, or slResult error code.
  */
-SL_API slResult slCreateLogicalDevice(const slLogicalDeviceDesc* pDeviceDesc, const slSwapchainDesc* pSwapchainDesc, slLogicalDevice* pOutDevice);
+SL_API slResult slCreateLogicalDevice(slWindowInstance instance, const slLogicalDeviceDesc* pDeviceDesc, slLogicalDevice* pOutDevice);
 
 /**
- * @brief Destroys a logical device configuration handle.
+ * @brief Destroys a logical device handle.
  * @param device The logical device handle to destroy.
  */
 SL_API void slDestroyLogicalDevice(slLogicalDevice device);
+
+/**
+ * @brief Creates a swapchain.
+ * @param device The logical device handle.
+ * @param pDesc Configuration descriptor for swapchain creation.
+ * @param pOutSwapchain Pointer to receive the allocated slSwapchain handle.
+ * @return SL_SUCCESS on success, or slResult error code.
+ */
+SL_API slResult slCreateSwapchain(slLogicalDevice device, const slSwapchainDesc* pDesc, slSwapchain* pOutSwapchain);
+
+/**
+ * @brief Destroys a swpchain handle.
+ * @param device The swapchain to destroy.
+ */
+SL_API void slDestroySwapchain(slSwapchain swapchain);
 
 /**
  * @brief Instantiates the actual native OS window, surface, and graphics pipelines using deferred descriptors.
@@ -79,7 +95,6 @@ SL_API slResult slCreateWindow(slWindowInstance instance, slLogicalDevice device
  * @param window The window handle to destroy.
  */
 SL_API void slDestroyWindow(slWindow window);
-
 
 /**
  * @brief Queries whether the user or OS has requested to close the window.
